@@ -1,0 +1,418 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Binary Search Tree Explorer</title>
+    <!-- Load Tailwind CSS -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    <!-- Load Inter Font -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #111827;
+            --card-dark: #1f2937;
+            --primary-color: #4f46e5;
+            --accent-color: #10b981;
+            --search-color: #f59e0b;
+        }
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-dark);
+            color: #f3f4f6;
+        }
+        .control-panel {
+            background-color: var(--card-dark);
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+        }
+        /* Custom styles for the SVG nodes and text */
+        .node-circle {
+            transition: fill 0.4s ease-in-out;
+            fill: var(--primary-color);
+        }
+        .node-text {
+            fill: white;
+            font-weight: 600;
+            user-select: none;
+        }
+        .link-line {
+            stroke: #6b7280;
+            stroke-width: 2;
+        }
+        /* State styles for visualization */
+        .node-searching {
+            fill: var(--search-color) !important;
+        }
+        .node-found {
+            fill: var(--accent-color) !important;
+        }
+        .path-line {
+            stroke: var(--search-color) !important;
+            stroke-width: 3;
+        }
+        /* Make SVG responsive and scrollable */
+        #visualization-area {
+            overflow: auto;
+            border: 1px solid #374151;
+        }
+    </style>
+</head>
+<body class="min-h-screen flex flex-col">
+
+    <header class="p-6 text-center">
+        <h1 class="text-3xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-violet-400 to-indigo-500">
+            Binary Search Tree (BST) Explorer
+        </h1>
+        <p class="text-gray-400 mt-1">Visualize how data is organized and searched.</p>
+    </header>
+
+    <div class="control-panel p-4 md:p-6 mb-4 mx-4 md:mx-auto w-full max-w-4xl rounded-xl">
+        <div class="flex flex-col md:flex-row space-y-3 md:space-y-0 md:space-x-4 items-center">
+            <input type="number" id="node-value" placeholder="Enter a number" min="0" class="flex-grow p-3 rounded-lg bg-gray-700 border border-gray-600 focus:ring-indigo-500 focus:border-indigo-500 text-white placeholder-gray-400">
+            
+            <div class="flex space-x-2 w-full md:w-auto">
+                <button id="insert-btn" class="w-full md:w-auto px-4 py-3 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition duration-200 font-semibold shadow-md flex items-center justify-center">
+                    <i class="ph-tree-structure-bold mr-2"></i> Insert Node
+                </button>
+                <button id="search-btn" class="w-full md:w-auto px-4 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition duration-200 font-semibold shadow-md flex items-center justify-center">
+                    <i class="ph-magnifying-glass-bold mr-2"></i> Search
+                </button>
+            </div>
+            
+            <button id="reset-btn" class="w-full md:w-auto px-4 py-3 bg-gray-600 text-white rounded-lg hover:bg-red-500 transition duration-200 font-semibold shadow-md flex items-center justify-center">
+                <i class="ph-trash-bold mr-2"></i> Reset Tree
+            </button>
+        </div>
+        <div id="message-box" class="mt-3 p-3 rounded-lg text-sm text-center hidden"></div>
+    </div>
+
+    <!-- Visualization Area -->
+    <main class="flex-grow mx-4 md:mx-auto w-full max-w-4xl mb-6">
+        <div id="visualization-area" class="h-96 rounded-xl bg-card-dark p-2 relative">
+            <svg id="bst-svg" width="100%" height="100%" viewBox="0 0 800 400" preserveAspectRatio="xMinYMin meet"></svg>
+        </div>
+    </main>
+
+    <!-- Load Phosphor Icons -->
+    <script src="https://unpkg.com/@phosphor-icons/web@2.1.1"></script>
+    <script>
+        // --- Core Data Structure Implementation (BST) ---
+
+        /**
+         * Represents a single node in the Binary Search Tree.
+         */
+        class Node {
+            constructor(value) {
+                this.value = value;
+                this.left = null;
+                this.right = null;
+            }
+        }
+
+        /**
+         * Represents the Binary Search Tree structure.
+         */
+        class BinarySearchTree {
+            constructor() {
+                this.root = null;
+            }
+
+            // Inserts a new value into the BST
+            insert(value) {
+                const newNode = new Node(value);
+                if (this.root === null) {
+                    this.root = newNode;
+                    return true;
+                }
+                let current = this.root;
+                while (true) {
+                    if (value === current.value) return false; // Duplicate
+                    if (value < current.value) {
+                        if (current.left === null) {
+                            current.left = newNode;
+                            return true;
+                        }
+                        current = current.left;
+                    } else {
+                        if (current.right === null) {
+                            current.right = newNode;
+                            return true;
+                        }
+                        current = current.right;
+                    }
+                }
+            }
+
+            // Searches for a value, returning the path taken to find it (or the path to where it would be)
+            search(value) {
+                if (this.root === null) return { found: false, path: [] };
+                let current = this.root;
+                const path = [current.value];
+                while (current) {
+                    if (value === current.value) {
+                        return { found: true, path };
+                    }
+                    if (value < current.value) {
+                        current = current.left;
+                    } else {
+                        current = current.right;
+                    }
+                    if (current) {
+                        path.push(current.value);
+                    }
+                }
+                return { found: false, path };
+            }
+        }
+
+        // --- Visualization & UI Logic ---
+
+        const NODE_RADIUS = 25;
+        const HORIZONTAL_SPACING = 50;
+        const VERTICAL_SPACING = 80;
+
+        const bst = new BinarySearchTree();
+        const svg = document.getElementById('bst-svg');
+        const nodeValueInput = document.getElementById('node-value');
+        const messageBox = document.getElementById('message-box');
+
+        /**
+         * Calculates the (x, y) coordinates for each node in the tree
+         * based on its depth and horizontal position.
+         * @param {Node} node - The current node.
+         * @param {number} x - The x-coordinate of the current node's parent.
+         * @param {number} y - The y-coordinate of the current node.
+         * @param {number} xOffset - The horizontal space available for the subtree.
+         * @param {Object} positions - Object to store the calculated positions.
+         * @param {number} depth - The current depth (starting at 0 for root).
+         * @returns {number} The x-coordinate of the current node.
+         */
+        function calculatePositions(node, x, y, xOffset, positions, depth = 0) {
+            if (!node) return 0;
+
+            const newXOffset = xOffset / 2;
+            let currentX = x;
+
+            // Calculate left child position
+            if (node.left) {
+                currentX = calculatePositions(node.left, x - newXOffset, y + VERTICAL_SPACING, newXOffset, positions, depth + 1);
+            }
+            
+            // Current node position
+            if (!node.left) {
+                 // If no left child, center the current node based on available space
+                currentX = x;
+            } else {
+                // If there is a left child, current node is placed to the right of it
+                currentX += HORIZONTAL_SPACING; 
+            }
+            
+            positions[node.value] = { x: currentX, y, depth };
+            
+            let finalX = currentX;
+
+            // Calculate right child position
+            if (node.right) {
+                finalX = calculatePositions(node.right, currentX + newXOffset, y + VERTICAL_SPACING, newXOffset, positions, depth + 1);
+            }
+            
+            // Return the right-most x-coordinate covered by this subtree
+            return finalX;
+        }
+
+        /**
+         * Draws the entire BST using SVG elements.
+         * @param {number[]} [path=[]] - Optional list of node values to highlight as a path.
+         * @param {boolean} [found=false] - If the search was successful.
+         */
+        function drawTree(path = [], found = false) {
+            svg.innerHTML = '';
+            
+            if (!bst.root) {
+                svg.setAttribute('viewBox', '0 0 800 400');
+                return;
+            }
+
+            const positions = {};
+            const initialXOffset = 400; // Starting guess for horizontal spacing
+            
+            // First, calculate all node positions to determine the final required width
+            calculatePositions(bst.root, initialXOffset, NODE_RADIUS * 2, initialXOffset, positions);
+            
+            // Find the true bounds of the tree
+            const allX = Object.values(positions).map(p => p.x);
+            const minX = Math.min(...allX) - NODE_RADIUS * 2;
+            const maxX = Math.max(...allX) + NODE_RADIUS * 2;
+            const treeWidth = Math.max(800, maxX - minX); 
+            const treeHeight = Math.max(400, Math.max(...Object.values(positions).map(p => p.y)) + NODE_RADIUS * 2);
+
+            // Set the SVG viewBox to fit the content, and center it
+            svg.setAttribute('viewBox', `0 0 ${treeWidth} ${treeHeight}`);
+            svg.style.width = '100%';
+            svg.style.height = `${treeHeight}px`;
+
+            // Adjust all positions to be relative to the new minX (to center the tree)
+            const offsetX = Math.max(0, (treeWidth - (maxX - minX)) / 2 - minX);
+            Object.values(positions).forEach(p => p.x += offsetX);
+
+            // Helper function to draw a line
+            const drawLine = (x1, y1, x2, y2, isPath = false) => {
+                const line = document.createElementNS('http://www.w3.org/2000/svg', 'line');
+                line.setAttribute('x1', x1);
+                line.setAttribute('y1', y1);
+                line.setAttribute('x2', x2);
+                line.setAttribute('y2', y2);
+                line.setAttribute('class', `link-line ${isPath ? 'path-line' : ''}`);
+                svg.appendChild(line);
+            };
+
+            // Helper function to draw a node
+            const drawNode = (node) => {
+                const pos = positions[node.value];
+                const x = pos.x;
+                const y = pos.y;
+                const nodeValue = node.value;
+
+                const isPathNode = path.includes(nodeValue);
+                const isTarget = isPathNode && (found || nodeValue === path[path.length - 1]);
+
+                // 1. Draw connections first so they are under the nodes
+                if (node.left) {
+                    const childPos = positions[node.left.value];
+                    const isLeftPath = isPathNode && path.includes(node.left.value);
+                    drawLine(x, y + NODE_RADIUS, childPos.x, childPos.y - NODE_RADIUS, isLeftPath);
+                }
+                if (node.right) {
+                    const childPos = positions[node.right.value];
+                    const isRightPath = isPathNode && path.includes(node.right.value);
+                    drawLine(x, y + NODE_RADIUS, childPos.x, childPos.y - NODE_RADIUS, isRightPath);
+                }
+
+                // 2. Draw the circle
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('cx', x);
+                circle.setAttribute('cy', y);
+                circle.setAttribute('r', NODE_RADIUS);
+                let circleClass = 'node-circle';
+                if (isTarget && found) {
+                    circleClass = 'node-found';
+                } else if (isPathNode) {
+                    circleClass = 'node-searching';
+                }
+                circle.setAttribute('class', circleClass);
+                svg.appendChild(circle);
+
+                // 3. Draw the text
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', x);
+                text.setAttribute('y', y + 6); // slight vertical adjustment
+                text.setAttribute('text-anchor', 'middle');
+                text.setAttribute('class', 'node-text');
+                text.textContent = nodeValue;
+                svg.appendChild(text);
+            };
+            
+            // Traverse and draw
+            const traverseAndDraw = (node) => {
+                if (node) {
+                    drawNode(node);
+                    traverseAndDraw(node.left);
+                    traverseAndDraw(node.right);
+                }
+            };
+            traverseAndDraw(bst.root);
+        }
+        
+        // --- Message Handling ---
+
+        function showMessage(text, type = 'success') {
+            messageBox.textContent = text;
+            messageBox.classList.remove('hidden', 'bg-red-500', 'bg-green-500', 'bg-yellow-500');
+            
+            let bgColor = '';
+            if (type === 'success') {
+                bgColor = 'bg-green-600';
+            } else if (type === 'error') {
+                bgColor = 'bg-red-600';
+            } else if (type === 'info') {
+                bgColor = 'bg-yellow-600';
+            }
+            messageBox.classList.add(bgColor);
+            
+            setTimeout(() => {
+                messageBox.classList.add('hidden');
+            }, 5000);
+        }
+
+        // --- Event Handlers ---
+
+        function handleInsert() {
+            const value = parseInt(nodeValueInput.value);
+            if (isNaN(value) || value < 0) {
+                showMessage("Please enter a valid positive number for insertion.", 'error');
+                return;
+            }
+
+            const success = bst.insert(value);
+            if (success) {
+                drawTree();
+                showMessage(`Successfully inserted node: ${value}`, 'success');
+            } else {
+                showMessage(`Node ${value} already exists. Duplicates are not allowed in this BST.`, 'info');
+            }
+            nodeValueInput.value = '';
+        }
+
+        function handleSearch() {
+            const value = parseInt(nodeValueInput.value);
+            if (isNaN(value)) {
+                showMessage("Please enter a valid number to search for.", 'error');
+                return;
+            }
+            
+            if (!bst.root) {
+                 showMessage("The tree is empty. Insert nodes first!", 'error');
+                return;
+            }
+
+            const { found, path } = bst.search(value);
+            drawTree(path, found); // Re-draw the tree, highlighting the path
+
+            if (found) {
+                showMessage(`Found node ${value}. Path taken: ${path.join(' -> ')}`, 'success');
+            } else {
+                showMessage(`Node ${value} not found. Path taken to check: ${path.join(' -> ')}.`, 'info');
+            }
+        }
+
+        function handleReset() {
+            if (confirm("Are you sure you want to reset the entire tree? All nodes will be lost.")) {
+                bst.root = null;
+                drawTree();
+                showMessage("The Binary Search Tree has been reset.", 'success');
+            }
+        }
+        
+        // --- Initialization ---
+
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initial drawing of the empty tree
+            drawTree(); 
+            showMessage("Ready to build your BST! Try inserting a few numbers.", 'info');
+
+            // Attach event listeners to buttons
+            document.getElementById('insert-btn').addEventListener('click', handleInsert);
+            document.getElementById('search-btn').addEventListener('click', handleSearch);
+            document.getElementById('reset-btn').addEventListener('click', handleReset);
+
+            // Allow Enter key in the input to trigger insert
+            nodeValueInput.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    handleInsert();
+                }
+            });
+        });
+
+    </script>
+</body>
+</html>
